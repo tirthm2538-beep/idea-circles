@@ -1,5 +1,6 @@
 -- ============================================================================
 -- IDEA CIRCLES - DATABASE SCHEMA & ROW LEVEL SECURITY
+-- Idempotent script: Safe to run multiple times without duplicate errors
 -- ============================================================================
 
 -- 1. PROFILES TABLE
@@ -107,6 +108,7 @@ create table if not exists public.idea_updates (
 
 -- ============================================================================
 -- ROW LEVEL SECURITY (RLS) POLICIES
+-- With 'DROP POLICY IF EXISTS' guards so the script can be safely re-run
 -- ============================================================================
 
 -- ----------------------------------------------------------------------------
@@ -114,11 +116,13 @@ create table if not exists public.idea_updates (
 -- ----------------------------------------------------------------------------
 alter table public.profiles enable row level security;
 
+drop policy if exists "Authenticated users can view profiles" on public.profiles;
 create policy "Authenticated users can view profiles"
   on public.profiles for select
   to authenticated
   using (true);
 
+drop policy if exists "Users can update their own profile" on public.profiles;
 create policy "Users can update their own profile"
   on public.profiles for update
   to authenticated
@@ -130,6 +134,8 @@ create policy "Users can update their own profile"
 -- ----------------------------------------------------------------------------
 alter table public.circles enable row level security;
 
+drop policy if exists "Members and creators can view circles" on public.circles;
+drop policy if exists "Members and code holders can view circles" on public.circles;
 create policy "Members and creators can view circles"
   on public.circles for select
   to authenticated
@@ -138,11 +144,13 @@ create policy "Members and creators can view circles"
     or created_by = auth.uid()
   );
 
+drop policy if exists "Users can create circles" on public.circles;
 create policy "Users can create circles"
   on public.circles for insert
   to authenticated
   with check (auth.uid() = created_by);
 
+drop policy if exists "Creators can update their circles" on public.circles;
 create policy "Creators can update their circles"
   on public.circles for update
   to authenticated
@@ -154,6 +162,7 @@ create policy "Creators can update their circles"
 -- ----------------------------------------------------------------------------
 alter table public.circle_members enable row level security;
 
+drop policy if exists "Circle members can see who is in their circle" on public.circle_members;
 create policy "Circle members can see who is in their circle"
   on public.circle_members for select
   to authenticated
@@ -161,11 +170,13 @@ create policy "Circle members can see who is in their circle"
     circle_id in (select circle_id from public.circle_members where user_id = auth.uid())
   );
 
+drop policy if exists "Users can join a circle" on public.circle_members;
 create policy "Users can join a circle"
   on public.circle_members for insert
   to authenticated
   with check (auth.uid() = user_id);
 
+drop policy if exists "Users can leave a circle" on public.circle_members;
 create policy "Users can leave a circle"
   on public.circle_members for delete
   to authenticated
@@ -175,7 +186,6 @@ create policy "Users can leave a circle"
 -- ----------------------------------------------------------------------------
 -- HELPER FUNCTION: JOIN CIRCLE WITH CODE
 -- ----------------------------------------------------------------------------
--- Allows a user to join a circle by invite code in one secure atomic operation
 create or replace function public.join_circle_with_code(code text)
 returns uuid as $$
 declare
@@ -203,7 +213,7 @@ $$ language plpgsql security definer;
 -- ----------------------------------------------------------------------------
 alter table public.ideas enable row level security;
 
--- You can view an idea IF you own it OR if it was shared to a circle you belong to
+drop policy if exists "Users can view their own ideas or ideas shared to their circles" on public.ideas;
 create policy "Users can view their own ideas or ideas shared to their circles"
   on public.ideas for select
   to authenticated
@@ -217,16 +227,19 @@ create policy "Users can view their own ideas or ideas shared to their circles"
     )
   );
 
+drop policy if exists "Users can create ideas" on public.ideas;
 create policy "Users can create ideas"
   on public.ideas for insert
   to authenticated
   with check (auth.uid() = user_id);
 
+drop policy if exists "Users can edit their own ideas" on public.ideas;
 create policy "Users can edit their own ideas"
   on public.ideas for update
   to authenticated
   using (auth.uid() = user_id);
 
+drop policy if exists "Users can delete their own ideas" on public.ideas;
 create policy "Users can delete their own ideas"
   on public.ideas for delete
   to authenticated
@@ -238,6 +251,7 @@ create policy "Users can delete their own ideas"
 -- ----------------------------------------------------------------------------
 alter table public.idea_shares enable row level security;
 
+drop policy if exists "View idea shares" on public.idea_shares;
 create policy "View idea shares"
   on public.idea_shares for select
   to authenticated
@@ -246,6 +260,7 @@ create policy "View idea shares"
     or idea_id in (select id from public.ideas where user_id = auth.uid())
   );
 
+drop policy if exists "Idea owner can share their idea" on public.idea_shares;
 create policy "Idea owner can share their idea"
   on public.idea_shares for insert
   to authenticated
@@ -253,6 +268,7 @@ create policy "Idea owner can share their idea"
     idea_id in (select id from public.ideas where user_id = auth.uid())
   );
 
+drop policy if exists "Idea owner can unshare their idea" on public.idea_shares;
 create policy "Idea owner can unshare their idea"
   on public.idea_shares for delete
   to authenticated
@@ -266,6 +282,7 @@ create policy "Idea owner can unshare their idea"
 -- ----------------------------------------------------------------------------
 alter table public.idea_updates enable row level security;
 
+drop policy if exists "View progress notes" on public.idea_updates;
 create policy "View progress notes"
   on public.idea_updates for select
   to authenticated
@@ -279,6 +296,7 @@ create policy "View progress notes"
     )
   );
 
+drop policy if exists "Idea owner can add progress notes" on public.idea_updates;
 create policy "Idea owner can add progress notes"
   on public.idea_updates for insert
   to authenticated
@@ -287,6 +305,7 @@ create policy "Idea owner can add progress notes"
     and idea_id in (select id from public.ideas where user_id = auth.uid())
   );
 
+drop policy if exists "Idea owner can delete their progress notes" on public.idea_updates;
 create policy "Idea owner can delete their progress notes"
   on public.idea_updates for delete
   to authenticated
