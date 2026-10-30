@@ -99,3 +99,4 @@ describe("Idea Circles Security & Permission Invariants", () => {
     assert.equal(canUserAddProgressNote(userC.id, idea1), false);
   });
 });
+

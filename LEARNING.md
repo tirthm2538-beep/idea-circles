@@ -143,3 +143,4 @@ This document records the architecture decisions, file responsibilities, and key
 > "Next.js uses a file-system convention based on React Suspense and Error Boundaries:
 > - `loading.tsx` wraps the route's `page.tsx` inside a React `<Suspense fallback={<Loading />}>`. It instantly shows a skeleton without waiting for the server fetch to complete.
 > - `error.tsx` wraps the segment in a React Error Boundary (`'use client'`). If a server action or fetch throws an unhandled exception, `error.tsx` catches it, prevents the white screen of death, and offers a `reset()` method to retry."
+
